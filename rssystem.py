@@ -70,7 +70,17 @@ class ThesisScorerBase(abc.ABC):
 class ThesisScorerKeywords(ThesisScorerBase):
     """Thesis Scorer that only uses Jaccard Score for keywords."""
 
-    def __init__(self, theses: List[Thesis], add_topic_to_keywords: bool = True) -> "None":
+    def __init__(self, theses: List[Thesis], add_topic_to_keywords: bool=True) -> "None":
+        """
+        Construct scorer using keywords for given theses.
+
+        Parameters
+        ----------
+        theses: List[Thesis]
+            theses to score against
+        add_topic_to_keywords: bool
+            whether to add tokenized topic to keywords
+        """
 
         theses = clean_theses(theses)
         self._add_topic_to_keywords = add_topic_to_keywords
@@ -86,6 +96,7 @@ class ThesisScorerKeywords(ThesisScorerBase):
         # calculate jaccard scores
         return [jaccard_distance(thesis_keywords, kw) for kw in self._theses_keywords]
 
+    # extracts keywords
     def _extract_keywords(self, thesis: Thesis) -> Set[str]:
 
         return preprocess_keywords(
@@ -99,6 +110,16 @@ class ThesisScorerMetadata(ThesisScorerBase):
     """Thesis Scorer that uses cosine similarity for encoded metadata features."""
 
     def __init__(self, theses: List[Thesis], metadata_columns: List[str]=["reader", "supervisor"]) -> "None":
+        """
+        Construct scorer using metadata for given theses.
+
+        Parameters
+        ----------
+        theses: List[Thesis]
+            theses to score against
+        metadata_columns: List[str]
+            columns to use as metadata -- these have to be one hot encodable
+        """
         
         self._metadata_columns = metadata_columns[:] # copy the default parameters
         # create encoders
@@ -135,6 +156,28 @@ class ThesisScorerBM25(ThesisScorerBase):
         b: float=0.75, 
         delta: float=0.5
         ) -> "None":
+        """
+        Construct scorer using text data with BM25 for given theses.
+
+        Parameters
+        ----------
+        theses: List[Thesis]
+            theses to score against
+        use_en_abstract: bool
+            whether to use english abstract
+        use_cs_abstract: bool
+            whether to use czech abstract
+        use_description: bool
+            whether to use description
+        use_topic: bool
+            whether to use topic
+        k1: float
+            BM25+ parameter
+        b: float
+            BM25+ parameter
+        delta: float
+            BM25+ parameter
+        """
 
         theses = clean_theses(theses)
         self._use_en_abstract = use_en_abstract
@@ -167,8 +210,18 @@ class ThesisScorerEnsemble(ThesisScorerBase):
     """Thesis Scorer that takes many scorers and ensembles them."""
 
     def __init__(self, scorers_with_weights: List[Tuple[ThesisScorerBase, float]], multiply_scores: bool=False) -> "None":
-        """Note: all scorers should be initialized on the same theses! Otherwise the result is useless!"""
-        # if multiply_scores is False then SUM them
+        """
+        Constructs scorer that ensembles other scorers.
+
+        Parameters
+        ----------
+        scorers_with_weights: List[Tuple[ThesisScorerBase, float]]
+            list of tuples in format: scorer, weight; each scorer is weighted w given weight
+        multiply_scores: bool
+            whether to multiply scores, if False then they are summed up
+        
+        Note: all scorers should be initialized on the same theses! Otherwise the result is useless!
+        """
         
         self._multiply_scores = multiply_scores
         self._scorers_with_weights = scorers_with_weights
@@ -187,6 +240,20 @@ class ThesisScorerEnsemble(ThesisScorerBase):
 
     # partial score of one inner scorer non-weighted
     def score_partial(self, thesis: Thesis, scorer_index: int) -> List[float]:
+        """Perform partial scoring by returning the scores of scorer under given index only.
+        
+        Parameters
+        ----------
+        thesis: Thesis
+            thesis to score
+        scorer_index: int
+            index of scorer to use
+
+        Returns
+        -------
+        List[float]
+            list of scores
+        """
 
         if scorer_index < 0 or scorer_index >= len(self._scorers_with_weights):
             return []
@@ -205,6 +272,7 @@ class ThesisScorerEnsemble(ThesisScorerBase):
         max_inverted_order_score = len(scores)
         return [(i, max_inverted_order_score - order) for order, i in enumerate(sorted_indices)]
         
+    # merge scores of scorers using given weights
     def _merge_scores(self, 
         scores_per_scorer: List[List[Tuple[int, float]]], 
         weights_per_scorer: List[float]
@@ -237,7 +305,7 @@ class ThesisScorerEnsemble(ThesisScorerBase):
 # RECOMMENDER SYSTEM CLASSES
 
 class ThesisRecommenderSystem(ThesisRecommenderSystemBase):
-    """Thesis Recommender System Base."""
+    """Thesis Recommender System that takes a scorer and recommends based on its scores."""
 
     def __init__(self, theses: List[Thesis], scorer: ThesisScorerBase) -> "None":
         """
@@ -267,7 +335,6 @@ class ThesisRecommenderSystem(ThesisRecommenderSystemBase):
         for i, _ in sorted_scores_with_indices:
                 
             recommend_candidate = self._index2thesis[i]
-            # TODO this equality might not be doing what we want
             # its important we don't recommend the exact same thesis and this check should do that
             if thesis != recommend_candidate:
                 recommendations.append((i, recommend_candidate))
@@ -278,8 +345,19 @@ class ThesisRecommenderSystem(ThesisRecommenderSystemBase):
 
 
 class ThesisRecommenderSystemKeywords(ThesisRecommenderSystem):
+    """Thesis recommender system that uses keywords."""
     
     def __init__(self, theses: List[Thesis], add_topic_to_keywords: bool = True) -> "None":
+        """
+        Construct recommender using keywords for given theses.
+
+        Parameters
+        ----------
+        theses: List[Thesis]
+            theses to score against
+        add_topic_to_keywords: bool
+            whether to add tokenized topic to keywords
+        """
 
         super(ThesisRecommenderSystemKeywords, self).__init__(
             theses, 
@@ -288,8 +366,19 @@ class ThesisRecommenderSystemKeywords(ThesisRecommenderSystem):
 
 
 class ThesisRecommenderSystemMetadata(ThesisRecommenderSystem):
+    """Thesis recommender system that uses encoded metadata."""
     
     def __init__(self, theses: List[Thesis], metadata_columns: List[str]=["reader", "supervisor"]) -> "None":
+        """
+        Construct recommender using metadata for given theses.
+
+        Parameters
+        ----------
+        theses: List[Thesis]
+            theses to score against
+        metadata_columns: List[str]
+            columns to use as metadata -- these have to be one hot encodable
+        """
 
         super(ThesisRecommenderSystemMetadata, self).__init__(
             theses, 
@@ -298,6 +387,7 @@ class ThesisRecommenderSystemMetadata(ThesisRecommenderSystem):
 
 
 class ThesisRecommenderSystemBM25(ThesisRecommenderSystem):
+    """Thesis recommender system that uses BM25 text data."""
     
     def __init__(self, 
         theses: List[Thesis], 
@@ -309,6 +399,28 @@ class ThesisRecommenderSystemBM25(ThesisRecommenderSystem):
         b: float=0.75, 
         delta: float=0.5
         ) -> "None":
+        """
+        Construct thesis recommender using text data with BM25 for given theses.
+
+        Parameters
+        ----------
+        theses: List[Thesis]
+            theses to score against
+        use_en_abstract: bool
+            whether to use english abstract
+        use_cs_abstract: bool
+            whether to use czech abstract
+        use_description: bool
+            whether to use description
+        use_topic: bool
+            whether to use topic
+        k1: float
+            BM25+ parameter
+        b: float
+            BM25+ parameter
+        delta: float
+            BM25+ parameter
+        """
 
         super(ThesisRecommenderSystemBM25, self).__init__(
             theses, 
@@ -326,6 +438,7 @@ class ThesisRecommenderSystemBM25(ThesisRecommenderSystem):
 
 
 class ThesisRecommenderSystemEnsemble(ThesisRecommenderSystem):
+    """Thesis recommender system that relies on ensembling of scorers."""
 
     def __init__(self, 
         theses: List[Thesis], 
@@ -333,14 +446,16 @@ class ThesisRecommenderSystemEnsemble(ThesisRecommenderSystem):
         multiply_scores: bool=False # sum them up
         ) -> "None":
         """
-        Creates recommender system for the given `theses`.
+        Constructs recommender that relies on ensembling scorers.
 
         Parameters
         ----------
-        theses: List[Thesis]
-            List of all theses that can be used as possible recommendations.
-        scorer: ThesisScorerBase
-            Valid ThesisScorerBase object that is used to score the theses.
+        scorers_with_weights: List[Tuple[ThesisScorerBase, float]]
+            list of tuples in format: scorer, weight; each scorer is weighted w given weight
+        multiply_scores: bool
+            whether to multiply scores, if False then they are summed up
+        
+        Note: all scorers should be initialized on the same theses! Otherwise the result is useless!
         """
 
         super(ThesisRecommenderSystemEnsemble, self).__init__(
@@ -352,11 +467,13 @@ class ThesisRecommenderSystemEnsemble(ThesisRecommenderSystem):
 # UTILS
 
 def normalize_scores(scores: List[float]) -> List[float]:
+    """Normalize scores dividing by the max."""
     
     max_score = max(scores)
     return [score / max_score for score in scores]
 
 def normalize_lists_of_scores(scores_list: List[List[float]]) -> List[float]:
+    """Normalize list of scores dividing by the global maximum."""
     
     max_score = max([max(scores) for scores in scores_list])
     return [[score / max_score for score in scores] for scores in scores_list]
