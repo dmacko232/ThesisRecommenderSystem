@@ -4,12 +4,33 @@ import numpy as np
 
 from collections import defaultdict
 
-# BM25L version
-# http://www.cs.otago.ac.nz/homepages/andrew/papers/2014-2.pdf
-# TODO possibly redo into Plus version
 class BM25:
+    """
+    Own implementation of BM25, specifically BM25+ see http://www.cs.otago.ac.nz/homepages/andrew/papers/2014-2.pdf
 
-    def __init__(self, tokenized_docs: List[List[str]], k1:float=1.5, b:float=0.75, delta:float=0.5) -> "None":
+    Implementation takes tokenized documents, processes them and then can be used to get score for
+    whole query or even for each token (to build matrix).
+
+    Attributes
+    ------------
+    No public attributes
+    """
+
+    def __init__(self, tokenized_docs: List[List[str]], k1: float=1.5, b: float=0.75, delta: float=0.5) -> "None":
+        """
+        Initializes BM25Plus model with specified documents and parameters.
+        
+        Parameters
+        -----------
+        tokenized_docs: List[List[str]]
+            corpus of documents which are tokenized and ready to be used
+        k1: float
+            BM25+ parameter, for more info see the paper
+        b: float
+            BM25+ parameter, for more info see the paper
+        delta: float
+            BM25+ parameter, for more info see the paper
+        """
 
         # calculate stats about docs 
         doc_freqs = [] # frequency dict for each doc
@@ -39,22 +60,49 @@ class BM25:
         })
 
         # store all the needed attributes
-        self._idfs = idfs
-        self._doc_freqs = doc_freqs
-        self._doc_lens = doc_lens
-        self._docs_count = docs_count
+        self._idfs = idfs # inverse document frequencies
+        self._doc_freqs = doc_freqs # token frequencies for each doc
+        self._doc_lens = doc_lens # lengths of documents
+        self._docs_count = docs_count # how many docs are there (n)
         self._avg_doc_len = total_tokens / self._docs_count
+        # below are parameters for the calculation
         self._k1 = k1
         self._b = b
         self._delta = delta
 
     # assign to each document one number corresponding to score from tokenized_doc
     def score(self, tokenized_doc: List[str]) -> List[float]:
+        """
+        Scores each document that was the model initalized with to the supplied one here (query)
+
+        Parameters
+        ----------
+        tokenized_doc: List[str]
+            tokenized document (also called query) to score all the documents to
+        
+        Returns
+        --------
+        List[float]
+            list of scores (bigger is more similar) for each document
+        """
         
         return [sum(score_dict.values()) for score_dict in self.score_tokenwise(tokenized_doc)]
 
     # get dictionary of token scores, pretty much transform that creates matrix
     def score_tokenwise(self, tokenized_doc: List[str]) -> List[Dict[str, float]]:
+        """
+        Scores each document's tokens that was the model initalized with to the supplied one here (query)
+
+        Parameters
+        ----------
+        tokenized_doc: List[str]
+            tokenized document (also called query) to score all the documents to
+        
+        Returns
+        --------
+        List[Dict[str, float]]
+            list of dictionaries where each dictionary has scores for all tokens in the doc (result score is sum)
+        """
         
         scores = []
         for i in range(self._docs_count):
@@ -63,6 +111,7 @@ class BM25:
                 )
         return scores
 
+    # scores one token for all the documents
     def _score_token(self, token: str) -> List[float]:
 
         scores = []
@@ -70,16 +119,17 @@ class BM25:
             scores.append(self._score_token_for_doc(token, i))
         return scores
 
+    # takes one token and document specified by given index and scores it accordingly
     def _score_token_for_doc(self, token: str, doc_index: int) -> float:
 
         token_freq = self._doc_freqs[doc_index][token]
         token_idf = self._idfs[token]
         doc_len = self._doc_lens[doc_index]
-        # see 3.2 BML in http://www.cs.otago.ac.nz/homepages/andrew/papers/2014-2.pdf
+        # see 3.2 BM25L in http://www.cs.otago.ac.nz/homepages/andrew/papers/2014-2.pdf
         #ctd = token_freq / (1 - self._b + self._b * doc_len / self._avg_doc_len)
         #token_score = token_idf * (((self._k1 + 1) * (ctd + self._delta)) / (self._k1 + ctd + self._delta))
 
-        # see 3.3 BMPlus
+        # see 3.3 BM25Plus
         token_score = token_idf * (self._delta + (
             token_freq * (self._k1 + 1)) / ( # nominator
                 self._k1 * (1 - self._b + self._b * doc_len / self._avg_doc_len) + token_freq) # denominator
