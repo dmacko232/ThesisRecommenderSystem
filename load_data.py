@@ -8,6 +8,7 @@ import builtins
 
 # https://stackoverflow.com/questions/56797480/python-get-type-object-from-its-name
 def get_type(type_name: str) -> type: 
+    """Get type object from the name of tpe supplied"""
     try: 
         return getattr(builtins, str(type_name)) 
     except AttributeError: 
@@ -19,12 +20,14 @@ def get_type(type_name: str) -> type:
 
 
 class Language(Enum):
+    """Language enumerable."""
     cze = auto()
     sla = auto()
     eng = auto()
 
 
 class Evaluation(Enum):
+    """Evaluation enumerable."""
     A = auto()
     B = auto()
     C = auto()
@@ -65,6 +68,8 @@ class Thesis:
 
     @classmethod
     def from_csv_dict(cls, csv_dict: dict[str, str]) -> "Thesis":  # no Self type till Python 3.11 :(
+        """Reads from csv dictionary."""
+
         d: dict[str, Any] = {cls.field_dict[k]: v for k, v in csv_dict.items()}
         d["author_id"] = int(d["author_id"])
         d["language"] = Language[d["language"]]
@@ -73,6 +78,8 @@ class Thesis:
         return cls(**d)
 
     def type_check(self) -> None:
+        """Performs type check."""
+
         for field, value in self.__dict__.items():
             if field == "keywords":
                 for word in value:
@@ -83,7 +90,9 @@ class Thesis:
                 raise RuntimeError(f"{type(value)}, {field}, {value}" )
 
 
-def parse_theses(filename: str = "sample_data.csv", used_cached: bool = True) -> Collection[Thesis]:
+def parse_theses(filename: str="sample_data.csv", used_cached: bool=True) -> Collection[Thesis]:
+    """Parse theses into collection."""
+
     cache_filename = f"{filename}.p"
     if used_cached:
         try:
