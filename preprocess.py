@@ -17,6 +17,7 @@ from gensim.parsing.preprocessing import (
     )
 
 def clean_thesis(thesis: Thesis) -> Thesis:
+    """Cleans single thesis by stripping all the texts."""
 
     # strip topic
     thesis.topic = thesis.topic.strip()
@@ -33,10 +34,12 @@ def clean_thesis(thesis: Thesis) -> Thesis:
     return thesis 
 
 def clean_theses(theses: Collection[Thesis]) -> Collection[Thesis]:
+    """Cleans colllection of theses by stripping texts."""
 
     return [clean_thesis(thesis) for thesis in theses]
 
 def preprocess_keywords(keywords: List[str]) -> Set[str]:
+    """Preprocess keywords by stripping them and casting to set."""
 
     return set([
         kw.strip()
@@ -44,6 +47,7 @@ def preprocess_keywords(keywords: List[str]) -> Set[str]:
         ])
 
 def preprocess_cs_abstract(doc: str, stopwords: Set[str], stem: bool) -> List[str]:
+    """Preprocess thesis czech abstract."""
 
     stopwords_func = partial(remove_stopwords, stopwords=stopwords)
     filters = [lambda s: s.lower(), strip_tags, strip_punctuation, 
@@ -53,6 +57,7 @@ def preprocess_cs_abstract(doc: str, stopwords: Set[str], stem: bool) -> List[st
     return preprocess_string(doc, filters)
 
 def preprocess_en_abstract(doc: str, stopwords: Set[str], stem: bool) -> List[str]:
+    """Preprocess thesis english abstract."""
 
     stopwords_func = partial(remove_stopwords, stopwords=stopwords)
     filters = [lambda s: s.lower(), strip_tags, strip_punctuation, 
@@ -62,6 +67,7 @@ def preprocess_en_abstract(doc: str, stopwords: Set[str], stem: bool) -> List[st
     return preprocess_string(doc, filters)
 
 def preprocess_description(doc: str, stopwords: Set[str], stem: bool) -> List[str]:
+    """Preprocess thesis description."""
 
     stopwords_func = partial(remove_stopwords, stopwords=stopwords)
     filters = [lambda s: s.lower(), strip_tags, strip_punctuation, 
@@ -71,6 +77,7 @@ def preprocess_description(doc: str, stopwords: Set[str], stem: bool) -> List[st
     return preprocess_string(doc, filters)
 
 def preprocess_topic(doc: str, stopwords: Set[str], stem: bool) -> List[str]:
+    """Preprocess thesis topic."""
 
     stopwords_func = partial(remove_stopwords, stopwords=stopwords)
     filters = [lambda s: s.lower(), strip_tags, strip_punctuation, 
@@ -85,6 +92,24 @@ def extract_docs_stopwords(
     min_doc_freq: Union[int, float] = 5, 
     max_doc_freq: Union[int, float] = -5,
     ) -> Set[str]:
+    """Extract document stopwords specified by the min and max doc frequencies.
+    
+    Parameters
+    ----------
+    docs: List[str]
+        list of documents (texts)
+    preprocess_function: Callable[[str, Set[str], bool], List[str]]
+        function that takes doc, specified set of tokens to ignore and bool whether to stem - returns tokenized doc
+    min_doc_freq: Union[int, float]
+        min frequency for non-stopwords, either positive int or float used to calcualate from how many docs we have
+    max_doc_freq: Union[int, float]
+        max frequency for non-stopwords, like min_doc_freq, but can be also negative int (subtracted from doc count)
+
+    Returns
+    ---------
+    Set[str]
+        set of stopwords calculated by not fitting between min and max doc frequency
+    """
 
     length = len(docs)
     if isinstance(min_doc_freq, float):
